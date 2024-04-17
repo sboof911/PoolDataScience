@@ -1,61 +1,63 @@
-import psycopg2
-from psycopg2 import Error
 import os
+import sqlalchemy
+import pandas as pd
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import MetaData
 
-def CreateTable(cursor, filename, folderPath, TableDesription):
-    table_name = filename.split('.')[0]
-    columnsData = TableDesription["columnsData"]
 
-    with open(folderPath + '/' + filename, 'r') as file:
-        lines = file.readlines()
+def CreateTable(engine, inspector, TableDescription, FileName):
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
 
-        columns = [column.strip() for column in lines[0].strip().split(TableDesription["splitter"])]
-        create_table_query = f'CREATE TABLE IF NOT EXISTS {table_name} ({", ".join([column + " " + columnsData[column] for column in columns])});'
-        cursor.execute(create_table_query)
-        print(f"Creating table {table_name}...")
+    TableName = FileName.split('.')[0]
+    if not inspector.has_table(TableName):
+        print(f"Creating {TableName}...")
+        columnsData = TableDescription["columnsData"]
+        columns = [sqlalchemy.Column(name, dtype) for name, dtype in columnsData.items()]
+        my_table = sqlalchemy.Table(TableName, metadata, *columns)
+        metadata.create_all(engine)
+        print(f"{TableName} Created!")
+    else:
+        print(f"{TableName} already exist")
 
-        for line in lines[1:]:
-            values = line.strip().split(TableDesription["splitter"])
-            insert_query = f'INSERT INTO {table_name} ({", ".join(columns)}) VALUES ({", ".join(["%s" for _ in values])});'
-            cursor.execute(insert_query, values)
-        print("Data Filled!")
-
-def CreateAndFillDataBase(connectData, folderPath, TableDesription):
-    FileNames = os.listdir(folderPath)
+def ConnectDataBase(ConnectData, TableDescription, folderPath, FileName=None, FillData=False):
     try:
-        connection = psycopg2.connect(**connectData)
-        cursor = connection.cursor()
-        for filename in FileNames:
-            CreateTable(cursor, filename, folderPath, TableDesription)
-            connection.commit()
+        db_url = f"{ConnectData['sqltype']}://{ConnectData['user']}:{ConnectData['password']}@{ConnectData['host']}:{ConnectData['port']}/{ConnectData['dbname']}"
+        engine = sqlalchemy.create_engine(db_url)
+        print(f"{ConnectData['dbname']} is Connected!")
+        inspector = sqlalchemy.inspect(engine)
 
-    except (Exception, Error) as error:
-        print("Error while connecting to PostgreSQL:", error)
+        FileNames = os.listdir(folderPath) if not FileName else (FileName if isinstance(FileName, list) else [FileName])
+        for FileName in FileNames:
+            CreateTable(engine, inspector, TableDescription, FileName)
+
+    except SQLAlchemyError as e:
+        print("An error occurred:", e)
 
     finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            print("PostgreSQL connection is closed")
+        engine.dispose()
+        print("PostgreSQL connection is closed")
 
 if __name__ == "__main__":
-    connectData = {
-        "user":"amaach",
-        "password":"mysecretpassword",
-        "host":"localhost",
-        "port":"5432",
-        "dbname":"piscineds"
+    ConnectData = {
+        'sqltype':"postgresql",
+        'user':"amaach",
+        'password':"mysecretpassword",
+        'host':"localhost",
+        'port':"5432",
+        'dbname':"piscineds"
     }
-    TableDesription = {
-        "splitter":',',     #The caracter splitting ur Data
+    TableDescription = {
+        "splitter":',',     #The character splitting ur Data
         "columnsData": {    #The Columns name and their DataType!
-            "event_time":"TIMESTAMP",
-            "event_type":"VARCHAR(255)",
-            "product_id":"INTEGER",
-            "price":"NUMERIC",
-            "user_id":"INTEGER",
-            "user_session":"VARCHAR(255)"
+            "event_time": sqlalchemy.DateTime(),
+            "event_type": sqlalchemy.types.String(length=255),
+            "product_id": sqlalchemy.types.Integer(),
+            "price": sqlalchemy.types.Float(),
+            "user_id": sqlalchemy.types.UUID(),
+            "user_session": sqlalchemy.types.VARCHAR(255)
         }
     }
-    folderPath = "/home/sboof/Desktop/PoolData/Day00/subject/customer"
-    CreateAndFillDataBase(connectData, folderPath, TableDesription)
+    CurrentDirectory = os.path.dirname(os.path.abspath(__file__)) + "/../subject/customer"
+    FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2022_jan.csv"]
+    ConnectDataBase(ConnectData, TableDescription, CurrentDirectory, FileName=FileNames, FillData=False)
