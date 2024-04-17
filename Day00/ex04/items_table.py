@@ -72,14 +72,12 @@ if __name__ == "__main__":
     TableDescription = {
         "splitter":',',     #The character splitting ur Data
         "columnsData": {    #The Columns name and their DataType!
-            "event_time": sqlalchemy.DateTime(),
-            "event_type": sqlalchemy.types.String(length=255),
             "product_id": sqlalchemy.types.Integer(),
-            "price": sqlalchemy.types.Float(),
-            "user_id": sqlalchemy.types.BigInteger(),
-            "user_session": sqlalchemy.types.UUID(as_uuid=True)
+            "category_id": sqlalchemy.types.UUID(),
+            "category_code": sqlalchemy.types.String(length=255),
+            "brand": sqlalchemy.types.String(length=255)
         }
     }
-    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../subject/customer/"
+    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../subject/item/"
     # FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2022_jan.csv"]
     ConnectDataBase(ConnectData, TableDescription, DatafolderPath, FillData=True)

@@ -33,6 +33,8 @@ def ConnectDataBase(ConnectData, TableDescription, folderPath, FileName=None, Fi
 
     except SQLAlchemyError as e:
         print("An error occurred:", e)
+    except Exception as e:
+        print(e)
 
     finally:
         engine.dispose()
@@ -54,10 +56,10 @@ if __name__ == "__main__":
             "event_type": sqlalchemy.types.String(length=255),
             "product_id": sqlalchemy.types.Integer(),
             "price": sqlalchemy.types.Float(),
-            "user_id": sqlalchemy.types.UUID(),
-            "user_session": sqlalchemy.types.VARCHAR(255)
+            "user_id": sqlalchemy.types.BigInteger(),
+            "user_session": sqlalchemy.types.UUID()
         }
     }
     CurrentDirectory = os.path.dirname(os.path.abspath(__file__)) + "/../subject/customer"
-    FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2022_jan.csv"]
+    FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2023_jan.csv"]
     ConnectDataBase(ConnectData, TableDescription, CurrentDirectory, FileName=FileNames, FillData=False)
