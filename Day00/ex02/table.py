@@ -5,22 +5,21 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import MetaData
 
 
-def CreateTable(engine, inspector, TableDescription, FileName):
+def CreateTable(engine, inspector, dtypes, FileName):
     metadata = MetaData()
     metadata.reflect(bind=engine)
 
     TableName = FileName.split('.')[0]
     if not inspector.has_table(TableName):
         print(f"Creating {TableName}...")
-        columnsData = TableDescription["columnsData"]
-        columns = [sqlalchemy.Column(name, dtype) for name, dtype in columnsData.items()]
+        columns = [sqlalchemy.Column(name, dtype) for name, dtype in dtypes.items()]
         my_table = sqlalchemy.Table(TableName, metadata, *columns)
         metadata.create_all(engine)
         print(f"{TableName} Created!")
     else:
         print(f"{TableName} already exist")
 
-def ConnectDataBase(ConnectData, TableDescription, folderPath, FileName=None, FillData=False):
+def ConnectDataBase(ConnectData, dtypes, folderPath, FileName=None, FillData=False):
     try:
         db_url = f"{ConnectData['sqltype']}://{ConnectData['user']}:{ConnectData['password']}@{ConnectData['host']}:{ConnectData['port']}/{ConnectData['dbname']}"
         engine = sqlalchemy.create_engine(db_url)
@@ -29,7 +28,7 @@ def ConnectDataBase(ConnectData, TableDescription, folderPath, FileName=None, Fi
 
         FileNames = os.listdir(folderPath) if not FileName else (FileName if isinstance(FileName, list) else [FileName])
         for FileName in FileNames:
-            CreateTable(engine, inspector, TableDescription, FileName)
+            CreateTable(engine, inspector, dtypes, FileName)
 
     except SQLAlchemyError as e:
         print("An error occurred:", e)
@@ -49,17 +48,14 @@ if __name__ == "__main__":
         'port':"5432",
         'dbname':"piscineds"
     }
-    TableDescription = {
-        "splitter":',',     #The character splitting ur Data
-        "columnsData": {    #The Columns name and their DataType!
-            "event_time": sqlalchemy.DateTime(),
-            "event_type": sqlalchemy.types.String(length=255),
-            "product_id": sqlalchemy.types.Integer(),
-            "price": sqlalchemy.types.Float(),
-            "user_id": sqlalchemy.types.BigInteger(),
-            "user_session": sqlalchemy.types.UUID()
-        }
+    dtypes = {
+        "event_time": sqlalchemy.DateTime(),
+        "event_type": sqlalchemy.types.String(length=255),
+        "product_id": sqlalchemy.types.Integer(),
+        "price": sqlalchemy.types.Float(),
+        "user_id": sqlalchemy.types.BigInteger(),
+        "user_session": sqlalchemy.types.UUID()
     }
     CurrentDirectory = os.path.dirname(os.path.abspath(__file__)) + "/../subject/customer"
     FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2023_jan.csv"]
-    ConnectDataBase(ConnectData, TableDescription, CurrentDirectory, FileName=FileNames, FillData=False)
+    ConnectDataBase(ConnectData, dtypes, CurrentDirectory, FileName=FileNames, FillData=False)
