@@ -9,26 +9,44 @@ def CreateTable(engine, inspector, dtypes, TableName):
     metadata = MetaData()
     metadata.reflect(bind=engine)
 
+    print(f"Creating {TableName}...")
     if not inspector.has_table(TableName):
-        print(f"Creating {TableName}...")
-        columns = [sqlalchemy.Column(name, dtype) for name, dtype in dtypes.items()]
+        PrimaryColumns = []
+        def PrimaryCheck(name, dtype):
+            if isinstance(dtype, list):
+                PrimaryColumns.append(name)
+                return sqlalchemy.Column(name, dtype[0], primary_key=True)
+            else:
+                return sqlalchemy.Column(name, dtype)
+        columns = [PrimaryCheck(name, dtype) for name, dtype in dtypes.items()]
+        if len(PrimaryColumns) > 0:
+            for column in PrimaryColumns:
+                dtypes[column] = dtypes[column][0]
+
         my_table = sqlalchemy.Table(TableName, metadata, *columns)
         metadata.create_all(engine)
         print(f"{TableName} Created!")
     else:
+        for key, _ in dtypes.items():
+            if isinstance(dtypes[key], list):
+                dtypes[key] = dtypes[key][0]
         print(f"{TableName} already exist")
+    return dtypes
 
 def LoadData(engine, DataFilePath, TableName, dtypes):
     if DataFilePath.endswith(".csv"):
         try:
+            print("Reading Data...")
             Data = pd.read_csv(DataFilePath)
         except Exception as e:
             print(e)
             return
     else:
         raise Exception("File must be .csv!")
-    
+
     print(f"Inserting Data to the table: {TableName}...")
+    if not set(Data.columns) == set(dtypes.keys()):
+        raise Exception(f"Columns in {TableName} are not the same as the dtypes setted!")
     Data.to_sql(TableName, engine, if_exists='replace', index=False, dtype=dtypes)
     print("Data Filled!")
 
@@ -43,7 +61,7 @@ def ConnectDataBase(ConnectData, dtypes, DatafolderPath, FileName=None, FillData
         FileNames = os.listdir(DatafolderPath) if not FileName else (FileName if isinstance(FileName, list) else [FileName])
         for FileName in FileNames:
             TableName = FileName.split('.')[0]
-            CreateTable(engine, inspector, dtypes, TableName)
+            dtypes = CreateTable(engine, inspector, dtypes, TableName)
             if FillData:
                 DataFilePath = DatafolderPath + FileName
                 LoadData(engine, DataFilePath, TableName, dtypes)
@@ -68,11 +86,10 @@ if __name__ == "__main__":
         'dbname':"piscineds"
     }
     dtypes = {
-        "product_id": sqlalchemy.types.Integer(),
+        "product_id": [sqlalchemy.types.Integer()], # if u need to do a primary key make the value as a list
         "category_id": sqlalchemy.types.BigInteger(),
         "category_code": sqlalchemy.types.String(length=255),
         "brand": sqlalchemy.types.String(length=255)
     }
     DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../subject/item/"
-    # FileNames = ["data_2022_dec.csv", "data_2022_nov.csv", "data_2022_oct.csv", "data_2022_jan.csv"]
     ConnectDataBase(ConnectData, dtypes, DatafolderPath, FillData=True)

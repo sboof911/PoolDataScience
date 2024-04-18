@@ -5,19 +5,33 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import MetaData
 
 
-def CreateTable(engine, inspector, dtypes, FileName):
+def CreateTable(engine, inspector, dtypes, TableName):
     metadata = MetaData()
     metadata.reflect(bind=engine)
 
-    TableName = FileName.split('.')[0]
+    print(f"Creating {TableName}...")
     if not inspector.has_table(TableName):
-        print(f"Creating {TableName}...")
-        columns = [sqlalchemy.Column(name, dtype) for name, dtype in dtypes.items()]
+        PrimaryColumns = []
+        def PrimaryCheck(name, dtype):
+            if isinstance(dtype, list):
+                PrimaryColumns.append(name)
+                return sqlalchemy.Column(name, dtype[0], primary_key=True)
+            else:
+                return sqlalchemy.Column(name, dtype)
+        columns = [PrimaryCheck(name, dtype) for name, dtype in dtypes.items()]
+        if len(PrimaryColumns) > 0:
+            for column in PrimaryColumns:
+                dtypes[column] = dtypes[column][0]
+
         my_table = sqlalchemy.Table(TableName, metadata, *columns)
         metadata.create_all(engine)
         print(f"{TableName} Created!")
     else:
+        for key, _ in dtypes.items():
+            if isinstance(dtypes[key], list):
+                dtypes[key] = dtypes[key][0]
         print(f"{TableName} already exist")
+    return dtypes
 
 def ConnectDataBase(ConnectData, dtypes, folderPath, FileName=None, FillData=False):
     try:
@@ -28,7 +42,7 @@ def ConnectDataBase(ConnectData, dtypes, folderPath, FileName=None, FillData=Fal
 
         FileNames = os.listdir(folderPath) if not FileName else (FileName if isinstance(FileName, list) else [FileName])
         for FileName in FileNames:
-            CreateTable(engine, inspector, dtypes, FileName)
+            dtypes = CreateTable(engine, inspector, dtypes, FileName)
 
     except SQLAlchemyError as e:
         print("An error occurred:", e)
