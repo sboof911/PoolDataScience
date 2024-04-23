@@ -179,18 +179,23 @@ class Sqlmanup():
                             connection.execute(sqlalchemy.text(query))
                             print("Commitig the DataLoaded!")
                             connection.commit()
-
-            addMissingColumns()
-            query = f"""
-                INSERT INTO {DestTableName} ({', '.join(srcTable.columns.keys())})
-                SELECT {', '.join(srcTable.columns.keys())}
-                FROM {SrcTableName}
-            """
-            with self._engine.connect() as connection:
-                print(f"Merging {SrcTableName} in {DestTableName}...")
-                connection.execute(sqlalchemy.text(query))
-                print("Commitig the DataLoaded!")
-                connection.commit()
+                    return missingColumns
+            missingColumns = addMissingColumns()
+            if missingColumns:
+                query = f"""
+                            UPDATE {DestTableName} destTable
+                            SET
+                                {', '.join([f"{columnName} = srcTable.{columnName}" for columnName, _ in missingColumns])}
+                            FROM {SrcTableName} srcTable
+                            WHERE destTable.{list(columns.keys())[0]} = srcTable.{list(columns.keys())[0]};
+                        """
+                with self._engine.connect() as connection:
+                    print(f"Merging {SrcTableName} in {DestTableName}...")
+                    connection.execute(sqlalchemy.text(query))
+                    print("Commitig the DataLoaded!")
+                    connection.commit()
+            else:
+                raise Exception("No missing columns!")
         else:
             if self._inspector.has_table(SrcTableName):
                 raise Exception(f"{DestTableName} not Found!")
