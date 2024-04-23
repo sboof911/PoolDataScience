@@ -91,5 +91,5 @@ if __name__ == "__main__":
         "category_code": sqlalchemy.types.String(length=255),
         "brand": sqlalchemy.types.String(length=255)
     }
-    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../subject/item/"
+    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../../data/subject/item/"
     ConnectDataBase(ConnectData, dtypes, DatafolderPath, FillData=True)

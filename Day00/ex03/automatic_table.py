@@ -94,5 +94,5 @@ if __name__ == "__main__":
         "user_id": sqlalchemy.types.BigInteger(),
         "user_session": sqlalchemy.types.UUID(as_uuid=True)
     }
-    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../subject/customer/"
+    DatafolderPath = os.path.dirname(os.path.abspath(__file__)) + "/../../data/subject/customer/"
     ConnectDataBase(ConnectData, dtypes, DatafolderPath, FillData=True)
